@@ -8,13 +8,13 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 
-# Install dependencies
-RUN npm ci
-
-# Copy source code
+# Copy source code (needed before npm ci because prepare script runs build)
 COPY src ./src
 
-# Build the application
+# Install dependencies (this will run prepare script which builds)
+RUN npm ci --ignore-scripts
+
+# Build the application explicitly
 RUN npm run build
 
 # Production stage
