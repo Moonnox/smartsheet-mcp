@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "smartsheet-remote": {
+      "url": "http://localhost:8080/mcp",
+      "transport": {
+        "type": "http"
+      },
+      "headers": {
+        "x-smartsheet-api-key": "YOUR_SMARTSHEET_API_KEY",
+        "x-secret-key": "YOUR_SECRET_KEY",
+        "x-smartsheet-endpoint": "https://api.smartsheet.com/2.0",
+        "x-allow-delete-tools": "false"
+      }
+    }
+  }
+}
+

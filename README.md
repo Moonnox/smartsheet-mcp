@@ -8,6 +8,8 @@ A [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server for in
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+  - [Local Server (stdio)](#local-server-stdio)
+  - [Remote Server (HTTP)](#remote-server-http)
 - [Available MCP Tools](#available-mcp-tools)
 - [API Endpoint Coverage](#api-endpoint-coverage)
 - [Example Usage](#example-usage)
@@ -25,6 +27,9 @@ MCP is a new technology. This integration relies on a SMARTSHEET API token allow
 - Create, update, and delete sheets and rows
 - Create version backups of sheets at specific timestamps
 - Formatted responses optimized for AI consumption
+- **Two deployment modes:**
+  - **Local Server**: Traditional stdio-based MCP server for local use
+  - **Remote Server**: HTTP-based server for cloud deployment with per-request authentication
 
 ## Installation
 
@@ -53,43 +58,96 @@ MCP is a new technology. This integration relies on a SMARTSHEET API token allow
 
 ## Usage
 
-There are several ways to run the MCP server with the `.env` file loaded:
+This MCP server can be run in two modes:
 
-### Using npm scripts (recommended)
+### Local Server (stdio)
 
-Start the server with environment variables loaded from the `.env` file:
+The traditional local MCP server that uses stdio transport. Best for local development and testing with Claude Desktop.
+
+**Setup:**
+
+1. Create a `.env` file with your Smartsheet API credentials:
+   ```
+   SMARTSHEET_API_KEY=your_smartsheet_api_token
+   SMARTSHEET_ENDPOINT=https://api.smartsheet.com/2.0
+   ```
+
+2. Start the server:
+   ```bash
+   npm run start
+   ```
+
+   Or build and start in one command:
+   ```bash
+   npm run dev
+   ```
+
+3. You can also run the server directly with Node.js:
+   ```bash
+   node -r dotenv/config build/index.js
+   ```
+
+### Remote Server (HTTP)
+
+A remote HTTP-based server that accepts Smartsheet API credentials as headers in each request. Perfect for cloud deployment and multi-user scenarios.
+
+**Quick Start:**
+
+1. Start the remote server locally:
+   ```bash
+   npm run start:remote
+   ```
+
+   Or with development mode:
+   ```bash
+   npm run dev:remote
+   ```
+
+2. The server will start on `http://localhost:8080` with the following endpoints:
+   - `GET /`: Server information
+   - `GET /health`: Health check
+   - `GET /tools`: List available tools
+   - `POST /mcp`: Main MCP JSON-RPC endpoint
+
+**Docker Deployment:**
 
 ```bash
-npm run start
+# Build the Docker image
+docker build -t smartsheet-mcp-remote .
+
+# Run the container
+docker run -p 8080:8080 \
+  -e REQUIRE_AUTH=true \
+  -e SECRET_KEY=your-secret-key-here \
+  smartsheet-mcp-remote
 ```
 
-This uses the `-r dotenv/config` flag to ensure dotenv is loaded before the application code runs.
-
-Or build and start in one command:
+**Docker Compose:**
 
 ```bash
-npm run dev
+# Start with docker-compose
+docker-compose up -d
 ```
 
-### Using node directly
+**Cloud Deployment:**
 
-You can also run the server directly with Node.js and the `-r` flag:
+The remote server can be deployed to any platform that supports Docker:
+- Google Cloud Run
+- AWS ECS/Fargate
+- Azure Container Instances
+- Kubernetes
 
-```bash
-node -r dotenv/config build/index.js
-```
+For detailed deployment instructions, configuration options, and client examples, see **[REMOTE-SERVER.md](REMOTE-SERVER.md)**.
 
-This ensures that dotenv is loaded before the application code runs.
+**Key Differences:**
 
-Alternatively, you can run without the `-r` flag:
-
-```bash
-node build/index.js
-```
-
-In this case, the application code will load dotenv itself (we've included `import { config } from "dotenv"; config();` at the top of the entry file).
-
-The server will start and display: "Smartsheet MCP Server running on stdio"
+| Feature | Local Server | Remote Server |
+|---------|-------------|---------------|
+| Transport | stdio | HTTP |
+| Authentication | Environment variables | Request headers |
+| Deployment | Local only | Cloud-ready |
+| Multi-user | No | Yes |
+| Configuration | `.env` file | Environment variables + headers |
 
 ## Available MCP Tools
 

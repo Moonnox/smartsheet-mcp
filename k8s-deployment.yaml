@@ -1,0 +1,195 @@
+# Kubernetes Deployment for Smartsheet MCP Remote Server
+# This example shows how to deploy the server to a Kubernetes cluster
+
+---
+# Secret for storing sensitive configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: smartsheet-mcp-secret
+  namespace: default
+type: Opaque
+stringData:
+  secret-key: "your-secret-key-here-change-this"
+
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartsheet-mcp-config
+  namespace: default
+data:
+  PORT: "8080"
+  HOST: "0.0.0.0"
+  REQUIRE_AUTH: "true"
+  DEBUG: "false"
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartsheet-mcp
+  namespace: default
+  labels:
+    app: smartsheet-mcp
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: smartsheet-mcp
+  template:
+    metadata:
+      labels:
+        app: smartsheet-mcp
+    spec:
+      containers:
+      - name: smartsheet-mcp
+        image: smartsheet-mcp-remote:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: smartsheet-mcp-config
+              key: PORT
+        - name: HOST
+          valueFrom:
+            configMapKeyRef:
+              name: smartsheet-mcp-config
+              key: HOST
+        - name: REQUIRE_AUTH
+          valueFrom:
+            configMapKeyRef:
+              name: smartsheet-mcp-config
+              key: REQUIRE_AUTH
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: smartsheet-mcp-config
+              key: DEBUG
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: smartsheet-mcp-secret
+              key: secret-key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartsheet-mcp
+  namespace: default
+  labels:
+    app: smartsheet-mcp
+spec:
+  type: LoadBalancer
+  selector:
+    app: smartsheet-mcp
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+    protocol: TCP
+  sessionAffinity: None
+
+---
+# Horizontal Pod Autoscaler (optional)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: smartsheet-mcp-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: smartsheet-mcp
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+# Ingress (optional, requires ingress controller)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smartsheet-mcp-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - smartsheet-mcp.yourdomain.com
+    secretName: smartsheet-mcp-tls
+  rules:
+  - host: smartsheet-mcp.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: smartsheet-mcp
+            port:
+              name: http
+

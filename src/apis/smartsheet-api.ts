@@ -23,9 +23,10 @@ export class SmartsheetAPI {
    * Creates a new SmartsheetAPI instance
    * @param accessToken Smartsheet API access token
    * @param baseUrl Smartsheet API base URL
+   * @param skipValidation Skip validation of access token and base URL (for remote server)
    */
-  constructor(accessToken?: string, baseUrl?: string) {
-    this.baseUrl = baseUrl || '';
+  constructor(accessToken?: string, baseUrl?: string, skipValidation: boolean = false) {
+    this.baseUrl = baseUrl || 'https://api.smartsheet.com/2.0';
     this.accessToken = accessToken || '';
     this.sheets = new SmartsheetSheetAPI(this);
     this.workspaces = new SmartsheetWorkspaceAPI(this);
@@ -34,12 +35,26 @@ export class SmartsheetAPI {
     this.search = new SmartsheetSearchAPI(this);
     this.discussions = new SmartsheetDiscussionAPI(this);
     
-    if (this.accessToken == '') {
-      throw new Error('SMARTSHEET_API_KEY environment variable is not set');
-    } 
+    if (!skipValidation) {
+      if (this.accessToken == '') {
+        throw new Error('SMARTSHEET_API_KEY environment variable is not set');
+      } 
 
-    if (this.baseUrl == '') {
-      throw new Error('SMARTSHEET_ENDPOINT environment variable is not set');
+      if (this.baseUrl == '') {
+        throw new Error('SMARTSHEET_ENDPOINT environment variable is not set');
+      }
+    }
+  }
+
+  /**
+   * Updates the access token and base URL for this instance
+   * @param accessToken Smartsheet API access token
+   * @param baseUrl Smartsheet API base URL
+   */
+  updateCredentials(accessToken: string, baseUrl?: string): void {
+    this.accessToken = accessToken;
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
     }
   }
 
